@@ -1,9 +1,25 @@
+/*
+ *  DFA.c
+ *  functions for scanning DFA from .dfa file and running DFAs,
+ *  along with helper functions
+ * 
+ *  Originally made for the tiny project simple_eval, more on:
+ *  https://github.com/Shouyin/simple_eval
+ *  
+ *  made by Maoting Zuo (Shouyin), in 2020
+ *  https://github.com/Shouyin
+ * 
+*/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "DFA.h"
 
-int main(int argc, char *argv[]) {
+
+int main(int argc, char *argv[]) 
+{
 
     if(argc != 2) {
         printf("error: should have exactly 1 argument");
@@ -29,11 +45,15 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-int test_accept(dfa_t *dfa, int now_state) {
+
+int test_accept(dfa_t *dfa, int now_state) 
+{
     return dfa->accept_state == now_state;
 }
 
-int run_dfa(dfa_t *dfa, char* input, int len) {
+
+int run_dfa(dfa_t *dfa, char* input, int len) 
+{
     int now_state = dfa->start_state;
     char c;
     for(int i = 0; i < len; i ++) {
@@ -50,7 +70,9 @@ int run_dfa(dfa_t *dfa, char* input, int len) {
     return now_state != DEAD_STATE && test_accept(dfa, now_state);
 }
 
-int **build_empty_table(int number_states, int number_symbols) {
+
+int **build_empty_table(int number_states, int number_symbols) 
+{
     int **table = (int **)malloc(number_states * sizeof(int *));
     for(int i = 0; i < number_states; i ++) {
         table[i] = (int *)malloc(number_symbols * sizeof(int));
@@ -61,11 +83,44 @@ int **build_empty_table(int number_states, int number_symbols) {
     return table;
 }
 
-void print_dfa(dfa_t *dfa) {
+
+static void print_special(char special) 
+{
+    switch (special) {
+        case '\n':
+            printf("%7cn", '\\');
+            break;
+        case '\t':
+            printf("%7ct", '\\');
+            break;
+        case ' ':
+            printf("%8s", "*blank*");
+            break;
+        default:
+            break;
+    }
+    printf("\t");
+}
+
+
+// check if c is a special char like \n, \t and whitespace
+static int is_special(char c) 
+{
+    return c == '\n' || c == '\t' || c == ' ';
+}
+
+
+void print_dfa(dfa_t *dfa) 
+{
     printf("nsymbols: %d, nstates: %d, start_state: %d, accept_state: %d\n", 
             dfa->symbols, dfa->state, dfa->start_state, dfa->accept_state);
     printf("from: | symbol->\t");
-    for(int i = 0; i < dfa->symbols; i ++) printf("%8c\t", (dfa->symbol_map)[i]);
+    char c;
+    for(int i = 0; i < dfa->symbols; i ++) {
+        c = (dfa->symbol_map)[i];
+        if(is_special(c)) print_special(c);
+        else printf("%8c\t", c);
+    } 
     printf("\n");
     for(int i = 0; i < dfa->state; i ++) {
         printf("%8d\t\t", i);
@@ -77,7 +132,32 @@ void print_dfa(dfa_t *dfa) {
 }
 
 
-dfa_t *read_dfa(const char* dfa_filep) {
+// symbols must contain at least two chars
+static char get_special(char* symbols) 
+{
+    char symbol;
+
+    symbol = symbols[0];
+
+    if(symbols[0] == '\\' && symbols[1] != 0) {
+        switch (symbols[1]) {
+            case 'n':
+                symbol = '\n';
+                break;
+            case 't':
+                symbol = '\t';
+                break;
+            default:
+                break;
+        }
+    }
+
+    return symbol;
+}
+
+
+dfa_t *read_dfa(const char* dfa_filep) 
+{
     FILE *dfa_file;
     dfa_file = fopen(dfa_filep, "r");
 
@@ -98,16 +178,33 @@ dfa_t *read_dfa(const char* dfa_filep) {
         return NULL;
     }
 
+
     dfa_t *dfa = (dfa_t*)malloc(sizeof(dfa_t));
     memset(dfa->symbol_reverse_map, NO_MAP, ASCII_COUNT);
     // dfa->symbol_reverse_map = {NO_MAP};
     
     // second line: symbols
-    while((c = fgetc(dfa_file)) != '\n'){
+    char tmp_symbol[3];
+    char *tp = (char *)tmp_symbol;
+    char c_symbol;
+    c = fgetc(dfa_file);
+    while(1){
+        while(1) {
+             *(tp++) = c;
+            c = fgetc(dfa_file);
+            if(c == '\n' || c == ',') break;
+        }
+        *tp = '\0';
+        c_symbol = get_special((char *) tmp_symbol);
+
         // store the symbol-index(in table) pair in the reverse map
-        (dfa->symbol_reverse_map)[c] = number_symbols;
-        (dfa->symbol_map)[number_symbols] = c;
+        (dfa->symbol_reverse_map)[c_symbol] = number_symbols;
+        (dfa->symbol_map)[number_symbols] = c_symbol;
         number_symbols++;
+
+        tp = (char *)tmp_symbol;
+        if(c == '\n') break;
+        c = fgetc(dfa_file);
     }
 
     printf("number_states: %d,\nnumber_symbols: %d", number_states, number_symbols);
@@ -140,8 +237,8 @@ dfa_t *read_dfa(const char* dfa_filep) {
         tranc_end = (char*)line;
 
         while(now_on < 3) {
-            while(*tranc_end == ' ')
-                tranc_end ++;
+            /*while(*tranc_end == ' ')
+                tranc_end ++;*/
             tranc_from = tranc_end;
             // printf("end: %c\n",*tranc_end);
             if(now_on < 2) {
@@ -165,8 +262,7 @@ dfa_t *read_dfa(const char* dfa_filep) {
                 // printf("%d,", to_state);
                 break;
             case 2:
-                symbol = tmp_state[0];
-                // printf("%c\n", symbol);
+                symbol = get_special((char *)tmp_state);
                 break;
             default:
                 break;
@@ -176,7 +272,9 @@ dfa_t *read_dfa(const char* dfa_filep) {
             now_on ++;
         }
 
-        (dfa->table)[from_state][(dfa->symbol_reverse_map)[symbol]] = to_state;
+        if((dfa->symbol_reverse_map)[symbol] != -1) {
+            (dfa->table)[from_state][(dfa->symbol_reverse_map)[symbol]] = to_state;
+        }
         now_on = 0;
     }
 
