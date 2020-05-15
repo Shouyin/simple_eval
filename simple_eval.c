@@ -10,9 +10,14 @@ int main(int argc, char *argv[]) {
     char* input = "(3 + 9) * 8";
     astnode_t *ast;
     char* rest;
+    char inputcs[200];
+
+    printf("Simple eval interpreter\n");
 
     while(1) {
-        ast = cfg_e((char *)input, &rest);
+        printf("eval> ");
+        gets((char*)inputcs);
+        ast = cfg_e((char *)inputcs, &rest);
         // char* test_edge = ")";
         // printf("test: %d\n", end_at_edge(test_edge));
         if(ast == NULL) {
@@ -20,6 +25,8 @@ int main(int argc, char *argv[]) {
         } else {
             while(ast->parent != NULL) ast = ast->parent;
         }
+        printf("[eval->] %d\n", eval(ast));
+        free_ast(ast);
     }
 
     // printf("eval: %d\n", eval(ast));
@@ -28,6 +35,24 @@ int main(int argc, char *argv[]) {
     // printf("rest: %s\n", rest);
 
     return 0;
+}
+
+void free_ast(astnode_t *ast) {
+    switch (ast->e_act) {
+        case EVAL_PLUS:
+        case EVAL_TIMES:
+        case EVAL_DIVIDE:
+        case EVAL_MINUS:
+            free_ast(ast->children.double_child.left);
+            free_ast(ast->children.double_child.right);
+            break;
+        case EVAL_PARTHESIS:
+            free_ast(ast->children.single_child.child);
+            break;
+        default:
+            break;
+    }
+    free(ast);
 }
 
 astnode_t *top_down_parse(char* input, int len) {
@@ -50,6 +75,7 @@ int eval(astnode_t *root) {
             return eval(root->children.double_child.left) / \
             eval(root->children.double_child.right);
         case EVAL_DIGI:
+            printf("d %d\n", root->value.int_value);
             return root->value.int_value;
         case EVAL_PARTHESIS:
             return eval(root->children.single_child.child);
@@ -137,6 +163,7 @@ astnode_t *cfg_e(char *input, char **r_rest) {
 
     if(peeked->type == TOKEN_LPARTHESIS) {
         l_node = cfg_e(peeked->end_at, &rest);
+        //printf("??????\n");
         if(l_node == NULL) {
             free(peeked);
             return NULL;
@@ -145,6 +172,7 @@ astnode_t *cfg_e(char *input, char **r_rest) {
         peeked = peek(rest);
         if(peeked->type == TOKEN_RPARTHESIS) {
             cnode = new_node(EVAL_PARTHESIS);
+            while(l_node->parent != NULL)l_node = l_node->parent;
             cnode->children.single_child.child = l_node;
             l_node->parent = cnode;
             
@@ -157,6 +185,7 @@ astnode_t *cfg_e(char *input, char **r_rest) {
             }
 
             parent_node = cfg_t(peeked->end_at, &rest);
+            //printf("??\n");
             if(parent_node == NULL) {
                 free(peeked);
                 return NULL;
@@ -166,7 +195,7 @@ astnode_t *cfg_e(char *input, char **r_rest) {
             if(r_rest != NULL) {
                 *r_rest = rest;
             }
-            return cnode;
+            return parent_node;
         } else {
             free(peeked);
             return NULL;
@@ -181,14 +210,17 @@ astnode_t *cfg_e(char *input, char **r_rest) {
         free(tmp);
 
         if(end_at_edge(peeked->end_at)) {
+            // printf("what here\n");
             if(r_rest != NULL) {
                 *r_rest = peeked->end_at;
             }
             free(peeked);
             return cnode;
         } else {
-            // printf("oprand, end_at to t: %s\n", peeked->end_at);
+            //printf("oprand, end_at to t: %s\n", peeked->end_at);
             parent_node = cfg_t(peeked->end_at, &rest);
+            //printf("back to here\n");
+
             if(parent_node == NULL) {
                 free(peeked);
                 return NULL;
@@ -240,6 +272,7 @@ astnode_t *cfg_t(char *input, char **r_rest) {
     }
 
     r_node = cfg_e(peeked->end_at, &rest);
+    // printf("after t e\n");
     if(r_node == NULL) {
         free(peeked);
         return NULL;
@@ -249,6 +282,7 @@ astnode_t *cfg_t(char *input, char **r_rest) {
     if(((act == EVAL_PLUS || act == EVAL_MINUS) && (
         r_node->e_act == EVAL_PARTHESIS || r_node->e_act == EVAL_TIMES || r_node->e_act == EVAL_DIVIDE)) ||
         r_node->e_act == EVAL_DIGI) {
+            // printf("?1\n");
             cnode->children.double_child.right = r_node;
             r_node->parent = cnode;
         } else {

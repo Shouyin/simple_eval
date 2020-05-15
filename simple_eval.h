@@ -39,5 +39,6 @@ astnode_t *cfg_e(char *input, char **r_rest);
 token_t *peek(char* input);
 int end_at_edge(char *c);
 int eval(astnode_t *root);
+void free_ast(astnode_t *ast);
 
 #endif
