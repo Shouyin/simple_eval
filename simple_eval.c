@@ -18,7 +18,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "DFA.h"
 #include "simple_eval.h"
 #include "AST.h"
 
