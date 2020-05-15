@@ -1,3 +1,20 @@
+/*
+ * simple_eval.c
+ * Main module of the simple eval project
+ * Using basic lexical analysis and top-down parsing techniques
+ * to achieve a simple calculator supporting operators +-*\/()
+ * 
+ * Currently AST functions are integrated in this module
+ * but later will be splited out
+ * 
+ * Simple eval project:
+ * https://github.com/Shouyin/simple_eval
+ * 
+ * Maoting Zuo (Shouyin)
+ * https://github.com/Shouyin
+ * 
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -55,10 +72,6 @@ void free_ast(astnode_t *ast) {
     free(ast);
 }
 
-astnode_t *top_down_parse(char* input, int len) {
-
-    return NULL;
-}
 
 int eval(astnode_t *root) {
     switch (root->e_act) {
@@ -75,12 +88,12 @@ int eval(astnode_t *root) {
             return eval(root->children.double_child.left) / \
             eval(root->children.double_child.right);
         case EVAL_DIGI:
-            printf("d %d\n", root->value.int_value);
             return root->value.int_value;
         case EVAL_PARTHESIS:
             return eval(root->children.single_child.child);
     }
 }
+
 
 static astnode_t *new_node(enum eval_action act) {
     astnode_t *node = (astnode_t *)malloc(sizeof(astnode_t));
@@ -89,6 +102,7 @@ static astnode_t *new_node(enum eval_action act) {
     return node;
 }
 
+
 static token_t *new_token(enum token_type tp, char* start_at, char* end_at) {
     token_t *token = (token_t *)malloc(sizeof(token_t));
     token->type = tp;
@@ -96,6 +110,7 @@ static token_t *new_token(enum token_type tp, char* start_at, char* end_at) {
     token->end_at = end_at;
     return token;
 }
+
 
 token_t *peek(char* input) {
     token_t *token;
@@ -143,12 +158,15 @@ token_t *peek(char* input) {
     return token;
 }
 
+
 const char edge[] = ")\t\n\0\v";
+
 
 int end_at_edge(char *c) {
     while(*c == ' ') c++;
     return strchr((const char *)edge, *c) != NULL;
 }
+
 
 astnode_t *cfg_e(char *input, char **r_rest) {
     // printf("input to e: %s\n", input);
@@ -192,15 +210,18 @@ astnode_t *cfg_e(char *input, char **r_rest) {
             }
             parent_node->children.double_child.left = cnode;
             cnode->parent = parent_node;
+
             if(r_rest != NULL) {
                 *r_rest = rest;
             }
+
             return parent_node;
         } else {
             free(peeked);
             return NULL;
         }
     } else if(peeked->type == TOKEN_OPRAND) {
+
         cnode = new_node(EVAL_DIGI);
         char *tmp = (char*)malloc((peeked->end_at - peeked->start_at + 1) * sizeof(char));
         memcpy(tmp, peeked->start_at, peeked->end_at - peeked->start_at);
@@ -225,6 +246,7 @@ astnode_t *cfg_e(char *input, char **r_rest) {
                 free(peeked);
                 return NULL;
             }
+            
             parent_node->children.double_child.left = cnode;
             cnode->parent = parent_node;
 
@@ -241,6 +263,7 @@ astnode_t *cfg_e(char *input, char **r_rest) {
     free(peeked);
     return NULL;
 }
+
 
 astnode_t *cfg_t(char *input, char **r_rest) {
     // printf("input to t: %s\n", input);
@@ -293,6 +316,7 @@ astnode_t *cfg_t(char *input, char **r_rest) {
         if(r_rest != NULL) {
             *r_rest = rest;
         }
+        free(peeked);
         return cnode;
     
 }
